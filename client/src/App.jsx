@@ -393,44 +393,49 @@ export default function App() {
       {showHowItWorks && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowHowItWorks(false)}></div>
-          <div className="relative w-full max-w-4xl bg-[#FFFBF7] rounded-3xl p-10 shadow-2xl border border-white/50">
-            <button onClick={() => setShowHowItWorks(false)} className="absolute top-6 right-6 p-2 text-jee-brown hover:bg-black/5 rounded-full transition-colors">
+          
+          {/* FIX 1: Added max-h-[95vh], overflow-y-auto, and responsive padding (p-6 on mobile, p-10 on desktop) */}
+          <div className="relative w-full max-w-4xl max-h-[95vh] overflow-y-auto bg-[#FFFBF7] rounded-3xl p-6 md:p-10 shadow-2xl border border-white/50 custom-scrollbar">
+            <button onClick={() => setShowHowItWorks(false)} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 text-jee-brown hover:bg-black/5 rounded-full transition-colors z-10">
               <X size={28} />
             </button>
-            <h2 className="text-4xl font-black text-jee-maroon mb-10 text-center">The Arena Flow</h2>
+            <h2 className="text-3xl md:text-4xl font-black text-jee-maroon mb-8 md:mb-10 text-center mt-2 md:mt-0">The Arena Flow</h2>
             
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            {/* FIX 2: Changed from flex-col to grid grid-cols-2 on mobile! */}
+            <div className="grid grid-cols-2 md:flex md:flex-row items-stretch justify-between gap-3 md:gap-4">
+              
               {/* Step 1 */}
-              <div className="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-jee-brown/5 text-center relative w-full">
-                <div className="w-12 h-12 bg-jee-maroon text-white rounded-full flex items-center justify-center font-bold text-xl mx-auto mb-4">1</div>
-                <h3 className="font-bold text-jee-brown text-lg">Drop In</h3>
-                <p className="text-sm text-jee-brown/60 mt-2">Pick an avatar and enter a name. No signups required.</p>
+              <div className="flex-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-jee-brown/5 text-center relative w-full flex flex-col items-center">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-jee-maroon text-white rounded-full flex items-center justify-center font-bold text-lg md:text-xl shrink-0 mx-auto mb-3 md:mb-4">1</div>
+                <h3 className="font-bold text-jee-brown text-base md:text-lg leading-tight">Drop In</h3>
+                <p className="text-xs md:text-sm text-jee-brown/60 mt-2">Pick an avatar & name. No signups.</p>
               </div>
-              <ArrowRight className="text-jee-gold hidden md:block" size={32} />
+              <ArrowRight className="text-jee-gold hidden md:block self-center shrink-0" size={32} />
               
               {/* Step 2 */}
-              <div className="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-jee-brown/5 text-center relative w-full">
-                <div className="w-12 h-12 bg-jee-maroon text-white rounded-full flex items-center justify-center font-bold text-xl mx-auto mb-4">2</div>
-                <h3 className="font-bold text-jee-brown text-lg">Crack 5 PYQs</h3>
-                <p className="text-sm text-jee-brown/60 mt-2">Beat the 15-minute clock. No negative marking today.</p>
+              <div className="flex-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-jee-brown/5 text-center relative w-full flex flex-col items-center">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-jee-maroon text-white rounded-full flex items-center justify-center font-bold text-lg md:text-xl shrink-0 mx-auto mb-3 md:mb-4">2</div>
+                <h3 className="font-bold text-jee-brown text-base md:text-lg leading-tight">Crack 5 PYQs</h3>
+                <p className="text-xs md:text-sm text-jee-brown/60 mt-2">Beat the 15-min clock. No negative marks.</p>
               </div>
-              <ArrowRight className="text-jee-gold hidden md:block" size={32} />
+              <ArrowRight className="text-jee-gold hidden md:block self-center shrink-0" size={32} />
 
               {/* Step 3 */}
-              <div className="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-jee-brown/5 text-center relative w-full">
-                <div className="w-12 h-12 bg-jee-maroon text-white rounded-full flex items-center justify-center font-bold text-xl mx-auto mb-4">3</div>
-                <h3 className="font-bold text-jee-brown text-lg">Lock Score</h3>
-                <p className="text-sm text-jee-brown/60 mt-2">Get instant analytics and detailed LaTeX solutions.</p>
+              <div className="flex-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-jee-brown/5 text-center relative w-full flex flex-col items-center">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-jee-maroon text-white rounded-full flex items-center justify-center font-bold text-lg md:text-xl shrink-0 mx-auto mb-3 md:mb-4">3</div>
+                <h3 className="font-bold text-jee-brown text-base md:text-lg leading-tight">Lock Score</h3>
+                <p className="text-xs md:text-sm text-jee-brown/60 mt-2">Instant analytics and detailed LaTeX solutions.</p>
               </div>
-              <ArrowRight className="text-jee-gold hidden md:block" size={32} />
+              <ArrowRight className="text-jee-gold hidden md:block self-center shrink-0" size={32} />
 
               {/* Step 4 */}
-              <div className="flex-1 bg-[#3A0B12] text-white p-6 rounded-2xl shadow-xl text-center relative w-full">
-                <div className="w-12 h-12 bg-jee-gold text-[#3A0B12] rounded-full flex items-center justify-center font-bold text-xl mx-auto mb-4">4</div>
-                <h3 className="font-bold text-jee-gold text-lg">10 PM Drop</h3>
-                <p className="text-sm text-white/70 mt-2">The global leaderboard unlocks. Claim your bragging rights.</p>
+              <div className="flex-1 bg-[#3A0B12] text-white p-4 md:p-6 rounded-2xl shadow-xl text-center relative w-full flex flex-col items-center">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-jee-gold text-[#3A0B12] rounded-full flex items-center justify-center font-bold text-lg md:text-xl shrink-0 mx-auto mb-3 md:mb-4">4</div>
+                <h3 className="font-bold text-jee-gold text-base md:text-lg leading-tight">10 PM Drop</h3>
+                <p className="text-xs md:text-sm text-white/70 mt-2">Leaderboard unlocks. Claim your bragging rights.</p>
               </div>
             </div>
+
           </div>
         </div>
       )}
