@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Play, X, User, Trophy, Clock, Target, CheckCircle, XCircle, 
-  ArrowUpRight, Calendar, Zap, Shield, FileText, BarChart2, ArrowRight 
+  ArrowUpRight, Calendar, Zap, Shield, FileText, CheckSquare, ArrowRight 
 } from 'lucide-react';
 import QuizArena from './QuizArena';
 import AdminPanel from './AdminPanel';
@@ -14,15 +14,16 @@ const AVATARS = [
 ];
 
 export default function App() {
-  // 1. HIDDEN ADMIN ROUTE
   if (window.location.pathname === '/admin-x7k9p') {
     return <AdminPanel />;
   }
 
   // --- STATE ---
-  const [config, setConfig] = useState({ isQuizLive: false, dropTime: 0, questions: [] });
+  const [config, setConfig] = useState({ isQuizLive: false, questions: [] });
+  const [isSyncing, setIsSyncing] = useState(true);
+  
   const [showModal, setShowModal] = useState(false);
-  const [showHowItWorks, setShowHowItWorks] = useState(false); // NEW STATE
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0]);
   
@@ -34,42 +35,18 @@ export default function App() {
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [userAnswers, setUserAnswers] = useState({});
 
-  // --- REAL-TIME TIMER LOGIC ---
-  const [isLeaderboardUnlocked, setIsLeaderboardUnlocked] = useState(false);
-  const [timeLeftStr, setTimeLeftStr] = useState('Loading...');
-  const [leaderboardData, setLeaderboardData] = useState([]);
-
   useEffect(() => {
     fetch(import.meta.env.VITE_API_URL + '/api/config')
       .then(res => res.json())
-      .then(data => setConfig(data))
-      .catch(err => console.error("Server offline"));
+      .then(data => {
+        setConfig(data);
+        setIsSyncing(false);
+      })
+      .catch(err => {
+        console.error("Server offline");
+        setIsSyncing(false);
+      });
   }, []);
-
-  useEffect(() => {
-    if (!config.dropTime) return;
-
-    const timer = setInterval(() => {
-      const now = new Date().getTime();
-      const distance = config.dropTime - now;
-
-      if (distance <= 0) {
-        clearInterval(timer);
-        setIsLeaderboardUnlocked(true);
-        setTimeLeftStr('LIVE NOW');
-        fetch(import.meta.env.VITE_API_URL + '/api/leaderboard')
-          .then(res => res.json())
-          .then(data => setLeaderboardData(data));
-      } else {
-        const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        const s = Math.floor((distance % (1000 * 60)) / 1000);
-        setTimeLeftStr(`${h}h ${m}m ${s}s`);
-      }
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [config.dropTime]);
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -81,7 +58,7 @@ export default function App() {
     if (!text) return null;
     const parts = text.split('$');
     return parts.map((part, index) => {
-      if (index % 2 === 1) return <InlineMath key={index} math={part} />;
+      if (index % 2 === 1 && part.trim() !== '') return <InlineMath key={index} math={part} />;
       return <span key={index}>{part}</span>;
     });
   };
@@ -89,23 +66,29 @@ export default function App() {
   const getPerformanceMessage = () => {
     if (totalQuestions === 0) return { title: "Completed!", sub: "Great effort." };
     const percentage = (finalScore / totalQuestions) * 100;
-    
     if (percentage === 100) return { title: "Flawless Victory! 🏆", sub: "Absolute mastery of the concepts." };
     if (percentage >= 80) return { title: "Excellent Work! 🔥", sub: "You're in the top percentile. Keep pushing." };
     if (percentage >= 50) return { title: "Solid Effort! 👍", sub: "Good foundation, but room to optimize." };
     return { title: "Keep Learning! 📚", sub: "Every mistake is a stepping stone. Review the solutions." };
   };
 
-  // --- VIEWS ---
+  // --- LOADING SCREEN ---
+  if (isSyncing) {
+    return (
+      <div className="min-h-screen bg-[#FFFBF7] flex flex-col items-center justify-center font-sans">
+        <div className="w-12 h-12 border-4 border-jee-maroon/20 border-t-jee-maroon rounded-full animate-spin mb-4"></div>
+        <h2 className="text-xl font-bold text-jee-maroon animate-pulse">Syncing with Arena Servers...</h2>
+      </div>
+    );
+  }
 
-  // VIEW 1: RESULTS & LEADERBOARD (Imported from Version 2)
+  // --- VIEW 1: INSTANT RESULTS ---
   if (quizFinished) {
     const perfMsg = getPerformanceMessage();
     return (
-      <div className="min-h-screen bg-jee-bg flex flex-col items-center py-12 relative overflow-y-auto px-4">
+      <div className="min-h-screen bg-[#FFFBF7] flex flex-col items-center py-12 relative overflow-y-auto px-4 font-sans">
         <div className="bg-white/80 backdrop-blur-xl border border-white rounded-3xl p-8 max-w-2xl w-full shadow-xl text-center mb-8">
           
-          {/* Custom Avatar Render */}
           <div className="mb-8 flex flex-col items-center">
             <img src={selectedAvatar} alt="Your Avatar" className="w-28 h-28 mb-4 rounded-full border-4 border-jee-gold shadow-xl object-cover bg-gray-100" />
             <h2 className="text-3xl font-extrabold text-jee-maroon">{perfMsg.title}</h2>
@@ -115,29 +98,18 @@ export default function App() {
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-white border border-jee-brown/10 p-6 rounded-2xl shadow-sm">
               <Target className="text-jee-green mx-auto mb-2" size={32} />
-              <p className="text-sm font-bold text-jee-brown/60">Score</p>
+              <p className="text-sm font-bold text-jee-brown/60">Final Score</p>
               <p className="text-4xl font-extrabold text-jee-maroon">{finalScore}<span className="text-xl text-jee-brown/40">/{totalQuestions}</span></p>
             </div>
             <div className="bg-white border border-jee-brown/10 p-6 rounded-2xl shadow-sm">
               <Clock className="text-jee-gold mx-auto mb-2" size={32} />
-              <p className="text-sm font-bold text-jee-brown/60">Time</p>
+              <p className="text-sm font-bold text-jee-brown/60">Time Elapsed</p>
               <p className="text-4xl font-extrabold text-jee-maroon">{formatTime(finalTime)}</p>
             </div>
           </div>
 
-          <div className={`p-6 rounded-2xl border transition-all mb-8 ${isLeaderboardUnlocked ? 'bg-jee-green/10 border-jee-green' : 'bg-jee-maroon/5 border-jee-maroon/10'}`}>
-            <Trophy className={`mx-auto mb-3 ${isLeaderboardUnlocked ? 'text-jee-green scale-110' : 'text-jee-gold animate-bounce'}`} size={32} />
-            <h3 className="text-lg font-bold text-jee-brown mb-1">
-              {isLeaderboardUnlocked ? 'The Results Are In!' : 'Leaderboard compiling...'}
-            </h3>
-            {!isLeaderboardUnlocked && (
-              <p className="text-jee-brown/70 font-medium text-sm">Unlocks at 10 PM. Time left: <span className="font-bold text-jee-maroon">{timeLeftStr}</span></p>
-            )}
-          </div>
-
-          {/* Performance Breakdown */}
           <div className="text-left border-t border-jee-brown/10 pt-8">
-            <h3 className="text-xl font-bold text-jee-maroon mb-6 flex items-center gap-2">📝 Performance Breakdown</h3>
+            <h3 className="text-xl font-bold text-jee-maroon mb-6 flex items-center gap-2">📝 Detailed Analytics & Solutions</h3>
             <div className="space-y-4">
               {config.questions.map((q, idx) => {
                 const userChoiceIdx = userAnswers[idx];
@@ -164,7 +136,6 @@ export default function App() {
                         <>
                           <div className={`flex items-center gap-2 ${isCorrect ? 'text-jee-green font-bold' : 'text-red-600 font-bold'}`}>
                             <span>Your Answer:</span>
-                            {/* SAFETY CHECK: Only render InlineMath if the option exists and isn't empty */}
                             <span>{userChoiceIdx !== undefined && q.options[userChoiceIdx] ? <InlineMath math={q.options[userChoiceIdx]} /> : 'Skipped'}</span>
                           </div>
                           {!isCorrect && (
@@ -182,48 +153,24 @@ export default function App() {
             </div>
           </div>
         </div>
-
-        {isLeaderboardUnlocked && (
-          <div className="max-w-2xl w-full bg-white rounded-3xl shadow-xl p-8 border border-jee-gold/30">
-            <h2 className="text-2xl font-bold text-jee-maroon mb-6 text-center">Global Leaderboard</h2>
-            <div className="space-y-3">
-              {leaderboardData.map((player, index) => (
-                <div key={player.id} className="flex items-center justify-between p-4 bg-jee-bg rounded-xl">
-                  <div className="flex items-center gap-4">
-                    <span className="text-2xl font-bold text-jee-gold w-8">#{index + 1}</span>
-                    <img src={player.avatar} alt="Avatar" className="w-12 h-12 rounded-full border-2 border-jee-gold object-cover bg-white shrink-0" />
-                    <span className="text-lg font-bold text-jee-brown">{player.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-jee-maroon">{player.score} pts</p>
-                    <p className="text-sm text-jee-brown/60">{formatTime(player.time)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        
+        <button onClick={() => window.location.reload()} className="mb-12 bg-jee-maroon text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-jee-maroon/90 shadow-xl transition">
+          Return to Home
+        </button>
       </div>
     );
   }
 
-  // VIEW 2: THE QUIZ ARENA (Unchanged)
+  // --- VIEW 2: THE QUIZ ARENA ---
   if (quizStarted) {
     return (
       <QuizArena 
         questions={config.questions}
         playerName={playerName} 
         avatar={selectedAvatar} 
-        onFinish={async (answers, time, score, scorable) => {
-          try {
-            await fetch(import.meta.env.VITE_API_URL + '/api/submit', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: playerName, avatar: selectedAvatar, score, time })
-            });
-          } catch (e) { console.error("Submit failed"); }
-
-          setUserAnswers(answers); 
+        onFinish={(answers, time, score, scorable) => {
+          // NO BACKEND FETCH REQUIRED! Pure speed.
+          setUserAnswers(answers);
           setFinalTime(time);
           setFinalScore(score);
           setTotalQuestions(scorable);
@@ -234,17 +181,14 @@ export default function App() {
     );
   }
 
-  // VIEW 3: THE HIGH-END LANDING PAGE (Unchanged from Version 1)
+  // --- VIEW 3: THE PREMIUM LANDING PAGE ---
   return (
-    <div className="min-h-screen bg-[#FFFBF7] overflow-x-hidden flex flex-col font-sans">
-      
-      {/* Top Navigation */}
+    <div className="min-h-screen bg-[#FFFBF7] overflow-x-hidden flex flex-col relative font-sans">
       <nav className="w-full max-w-7xl mx-auto px-6 py-6 flex items-center justify-between z-20 relative">
         <div className="text-3xl font-black text-jee-maroon tracking-tight">JEEsociety</div>
         <div className="hidden md:flex items-center gap-8 font-semibold text-jee-brown/80">
           <a href="#" className="hover:text-jee-maroon transition-colors">Home</a>
           <a href="#" className="hover:text-jee-maroon transition-colors">Arena</a>
-          <a href="#" className="hover:text-jee-maroon transition-colors">Leaderboard</a>
         </div>
         <button 
           onClick={() => setShowModal(true)}
@@ -254,98 +198,98 @@ export default function App() {
         </button>
       </nav>
 
-      {/* Main Hero Section */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-6 flex flex-col justify-center relative z-10 mt-8 md:mt-0">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-6 flex flex-col justify-center relative z-10 mt-6 md:mt-0">
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        {/* Flexbox container: Column on mobile, Row on desktop */}
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-center">
           
-          {/* Left Copy */}
-          <div className="space-y-8">
+          {/* --- TOP ON MOBILE / RIGHT ON DESKTOP --- */}
+          <div className="relative w-full max-w-[280px] sm:max-w-[340px] lg:max-w-[500px] aspect-square flex justify-center items-center order-1 lg:order-2 mx-auto lg:ml-auto mb-2 lg:mb-0">
             
-            {/* Live Status Pill */}
-            <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full font-bold text-sm tracking-wide ${config.isQuizLive ? 'bg-jee-maroon/10 text-jee-maroon' : 'bg-gray-200 text-gray-500'}`}>
-              <span className={`w-2 h-2 rounded-full ${config.isQuizLive ? 'bg-jee-green animate-pulse' : 'bg-gray-400'}`}></span>
-              {config.isQuizLive ? 'QUIZ IS LIVE' : 'CURRENTLY CLOSED'}
+            {/* The giant circular mask (NO animation class here) */}
+            <div className="relative w-full h-full rounded-full overflow-hidden shadow-2xl border-[6px] md:border-[8px] border-white/60">
+              <video className="absolute inset-0 w-full h-full object-cover" autoPlay loop muted playsInline>
+                <source src="/hero-animation.mp4" type="video/mp4" />
+              </video>
+              
+              {/* Subtle overlay */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-[#4A0E17]/20 to-transparent mix-blend-overlay pointer-events-none"></div>
+            </div>
+            
+            {/* Ambient background glow adjusted for the circle */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] h-[110%] bg-jee-maroon/15 rounded-full blur-[60px] md:blur-[100px] -z-10"></div>
+          </div>
+
+          {/* --- BOTTOM ON MOBILE / LEFT ON DESKTOP --- */}
+          <div className="space-y-6 lg:space-y-8 order-2 lg:order-1 flex-1 w-full flex flex-col items-center text-center lg:items-start lg:text-left">
+            
+            <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full font-bold text-sm tracking-wide ${config.isQuizLive && config.questions.length > 0 ? 'bg-jee-maroon/10 text-jee-maroon' : 'bg-gray-200 text-gray-500'}`}>
+              <span className={`w-2 h-2 rounded-full ${config.isQuizLive && config.questions.length > 0 ? 'bg-jee-green animate-pulse' : 'bg-gray-400'}`}></span>
+              {config.isQuizLive && config.questions.length > 0 ? 'PRACTICE IS LIVE' : 'CURRENTLY CLOSED'}
             </div>
 
-            <h1 className="text-6xl md:text-[5rem] font-black text-jee-maroon leading-[1.05] tracking-tight">
+            <h1 className="text-5xl md:text-6xl lg:text-[5rem] font-black text-jee-maroon leading-[1.05] tracking-tight">
               The Weekly <br/>
               <span className="bg-gradient-to-r from-jee-gold via-[#F3E5AB] to-jee-gold text-transparent bg-clip-text drop-shadow-sm">JEE Showdown.</span>
             </h1>
             
-            <p className="text-xl text-jee-brown/70 max-w-md font-medium leading-relaxed">
-              Master-level PYQs. 15 Minutes. Compete live with the community and climb the leaderboard.
+            <p className="text-lg md:text-xl text-jee-brown/70 max-w-md font-medium leading-relaxed">
+              Master-level PYQs. 15 Minutes. Compete against the clock and get instant analytics to perfect your strategy.
             </p>
 
-            {/* CTAs */}
-            <div className="flex items-center gap-6 pt-4">
-              <button 
-                onClick={() => setShowModal(true)}
-                disabled={!config.isQuizLive}
-                className={`group relative flex items-center gap-4 px-8 py-4 rounded-full font-bold text-xl transition-all ${
-                  config.isQuizLive 
-                    ? 'bg-[#3A0B12] text-white hover:scale-105 animate-pulse-glow cursor-pointer' 
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                Enter Arena <span className="bg-white text-[#3A0B12] rounded-full p-1"><ArrowUpRight size={18} strokeWidth={3}/></span>
-              </button>
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 pt-2 w-full sm:w-auto">
+              {config.isQuizLive && config.questions.length > 0 ? (
+                <button 
+                  onClick={() => setShowModal(true)}
+                  className="group relative flex items-center justify-center gap-4 px-8 py-4 rounded-full font-bold text-xl transition-all bg-[#3A0B12] text-white hover:scale-105 animate-pulse-glow w-full sm:w-auto"
+                >
+                  Enter Arena <span className="bg-white text-[#3A0B12] rounded-full p-1"><ArrowUpRight size={18} strokeWidth={3}/></span>
+                </button>
+              ) : (
+                <button 
+                  disabled
+                  className="flex items-center justify-center gap-4 px-8 py-4 rounded-full font-bold text-xl transition-all bg-gray-300 text-gray-500 cursor-not-allowed w-full sm:w-auto"
+                >
+                  {config.isQuizLive && config.questions.length === 0 ? 'Arena Preparing...' : 'Currently Closed'}
+                </button>
+              )}
               
-              <button 
-                onClick={() => setShowHowItWorks(true)}
-                className="font-bold text-jee-brown hover:text-jee-maroon transition-colors underline decoration-2 underline-offset-4"
-              >
+              <button onClick={() => setShowHowItWorks(true)} className="font-bold text-jee-brown hover:text-jee-maroon transition-colors underline decoration-2 underline-offset-4">
                 How it works?
               </button>
             </div>
 
-            {/* Middle Feature Row (Bento style) */}
-            <div className="flex flex-wrap gap-4 pt-8">
+            {/* Feature Row - Centered on mobile, aligned left on desktop */}
+            <div className="flex flex-wrap justify-center lg:justify-start gap-4 pt-6">
               <div className="flex items-center gap-3 bg-white/60 backdrop-blur-sm px-5 py-3 rounded-2xl border border-white/40 shadow-sm">
                 <div className="bg-jee-maroon/10 p-2 rounded-lg"><Calendar className="text-jee-maroon" size={20} /></div>
-                <div>
-                  <p className="text-sm font-bold text-jee-brown leading-tight">Every Sunday</p>
-                  <p className="text-xs text-jee-brown/60 font-medium">5 PM to 10 PM</p>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-jee-brown leading-tight">Every Week</p>
+                  <p className="text-xs text-jee-brown/60 font-medium">New curations dropped</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-white/60 backdrop-blur-sm px-5 py-3 rounded-2xl border border-white/40 shadow-sm">
                 <div className="bg-jee-maroon/10 p-2 rounded-lg"><Zap className="text-jee-maroon" size={20} /></div>
-                <div>
-                  <p className="text-sm font-bold text-jee-brown leading-tight">Mega Quiz</p>
-                  <p className="text-xs text-jee-brown/60 font-medium">High Stakes. Big Rights.</p>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-jee-brown leading-tight">Instant Feedback</p>
+                  <p className="text-xs text-jee-brown/60 font-medium">Detailed LaTeX solutions</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-white/60 backdrop-blur-sm px-5 py-3 rounded-2xl border border-white/40 shadow-sm">
                 <div className="bg-jee-maroon/10 p-2 rounded-lg"><Shield className="text-jee-maroon" size={20} /></div>
-                <div>
+                <div className="text-left">
                   <p className="text-sm font-bold text-jee-brown leading-tight">Zero-Friction Entry</p>
-                  <p className="text-xs text-jee-brown/60 font-medium">No accounts needed.</p>
+                  <p className="text-xs text-jee-brown/60 font-medium">No accounts needed</p>
                 </div>
               </div>
             </div>
-
+            
           </div>
-
-          {/* Right Video Circular/Dome Mask */}
-          <div className="relative w-full aspect-square flex justify-center items-center">
-            {/* The giant circular mask */}
-            <div className="relative w-[90%] h-[90%] rounded-full overflow-hidden shadow-2xl border-[8px] border-white/40 animate-subtle-float">
-              <video className="absolute inset-0 w-full h-full object-cover scale-105" autoPlay loop muted playsInline>
-                <source src="/hero-animation.mp4" type="video/mp4" />
-              </video>
-              <div className="absolute inset-0 bg-gradient-to-tr from-[#4A0E17]/40 to-transparent mix-blend-overlay"></div>
-            </div>
-            {/* Ambient background glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-jee-maroon/10 rounded-full blur-[100px] -z-10"></div>
-          </div>
-          
         </div>
       </main>
 
-      {/* Bottom Footer Bar */}
       <div className="w-full max-w-7xl mx-auto px-6 pb-8 mt-12 z-10">
         <div className="bg-[#3A0B12] rounded-[2rem] p-8 md:p-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8 shadow-2xl">
-          
           <div className="flex items-center gap-4 text-white">
             <FileText size={36} className="text-jee-gold opacity-80" />
             <div>
@@ -353,9 +297,7 @@ export default function App() {
               <p className="text-sm text-white/60 mt-1 font-medium max-w-[180px]">Carefully curated previous year questions.</p>
             </div>
           </div>
-
           <div className="hidden md:block w-px h-16 bg-white/10"></div>
-
           <div className="flex items-center gap-4 text-white">
             <Clock size={36} className="text-jee-gold opacity-80" />
             <div>
@@ -363,19 +305,15 @@ export default function App() {
               <p className="text-sm text-white/60 mt-1 font-medium max-w-[180px]">Quick. Focused. Competitive. Every minute counts.</p>
             </div>
           </div>
-
           <div className="hidden md:block w-px h-16 bg-white/10"></div>
-
           <div className="flex items-center gap-4 text-white">
-            <BarChart2 size={36} className="text-jee-gold opacity-80" />
+            <CheckSquare size={36} className="text-jee-gold opacity-80" />
             <div>
-              <h4 className="font-bold text-lg leading-tight">Live Leaderboard</h4>
-              <p className="text-sm text-white/60 mt-1 font-medium max-w-[180px]">See how you rank in real-time against the best.</p>
+              <h4 className="font-bold text-lg leading-tight">Instant Solutions</h4>
+              <p className="text-sm text-white/60 mt-1 font-medium max-w-[180px]">See exactly where you went wrong immediately.</p>
             </div>
           </div>
-
           <div className="hidden md:block w-px h-16 bg-white/10"></div>
-
           <div className="flex items-center gap-4 text-white">
             <Target size={36} className="text-jee-gold opacity-80" />
             <div>
@@ -383,59 +321,38 @@ export default function App() {
               <p className="text-sm text-white/60 mt-1 font-medium max-w-[180px]">Detailed insights to help you learn and grow.</p>
             </div>
           </div>
-
         </div>
       </div>
 
       {/* --- MODALS --- */}
 
-      {/* How it Works Modal */}
+      {/* How it Works Modal (Now 3 Steps) */}
       {showHowItWorks && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowHowItWorks(false)}></div>
-          
-          {/* FIX 1: Added max-h-[95vh], overflow-y-auto, and responsive padding (p-6 on mobile, p-10 on desktop) */}
           <div className="relative w-full max-w-4xl max-h-[95vh] overflow-y-auto bg-[#FFFBF7] rounded-3xl p-6 md:p-10 shadow-2xl border border-white/50 custom-scrollbar">
             <button onClick={() => setShowHowItWorks(false)} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 text-jee-brown hover:bg-black/5 rounded-full transition-colors z-10">
               <X size={28} />
             </button>
             <h2 className="text-3xl md:text-4xl font-black text-jee-maroon mb-8 md:mb-10 text-center mt-2 md:mt-0">The Arena Flow</h2>
             
-            {/* FIX 2: Changed from flex-col to grid grid-cols-2 on mobile! */}
-            <div className="grid grid-cols-2 md:flex md:flex-row items-stretch justify-between gap-3 md:gap-4">
-              
-              {/* Step 1 */}
-              <div className="flex-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-jee-brown/5 text-center relative w-full flex flex-col items-center">
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-jee-maroon text-white rounded-full flex items-center justify-center font-bold text-lg md:text-xl shrink-0 mx-auto mb-3 md:mb-4">1</div>
-                <h3 className="font-bold text-jee-brown text-base md:text-lg leading-tight">Drop In</h3>
-                <p className="text-xs md:text-sm text-jee-brown/60 mt-2">Pick an avatar & name. No signups.</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 items-stretch justify-between gap-4">
+              <div className="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-jee-brown/5 text-center relative flex flex-col items-center">
+                <div className="w-12 h-12 bg-jee-maroon text-white rounded-full flex items-center justify-center font-bold text-xl mx-auto mb-4">1</div>
+                <h3 className="font-bold text-jee-brown text-lg">Drop In</h3>
+                <p className="text-sm text-jee-brown/60 mt-2">Pick an avatar & name. No signups required.</p>
               </div>
-              <ArrowRight className="text-jee-gold hidden md:block self-center shrink-0" size={32} />
-              
-              {/* Step 2 */}
-              <div className="flex-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-jee-brown/5 text-center relative w-full flex flex-col items-center">
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-jee-maroon text-white rounded-full flex items-center justify-center font-bold text-lg md:text-xl shrink-0 mx-auto mb-3 md:mb-4">2</div>
-                <h3 className="font-bold text-jee-brown text-base md:text-lg leading-tight">Crack 5 PYQs</h3>
-                <p className="text-xs md:text-sm text-jee-brown/60 mt-2">Beat the 15-min clock. No negative marks.</p>
+              <div className="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-jee-brown/5 text-center relative flex flex-col items-center">
+                <div className="w-12 h-12 bg-jee-maroon text-white rounded-full flex items-center justify-center font-bold text-xl mx-auto mb-4">2</div>
+                <h3 className="font-bold text-jee-brown text-lg">Crack 5 PYQs</h3>
+                <p className="text-sm text-jee-brown/60 mt-2">Beat the 15-minute clock. No negative marking today.</p>
               </div>
-              <ArrowRight className="text-jee-gold hidden md:block self-center shrink-0" size={32} />
-
-              {/* Step 3 */}
-              <div className="flex-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-jee-brown/5 text-center relative w-full flex flex-col items-center">
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-jee-maroon text-white rounded-full flex items-center justify-center font-bold text-lg md:text-xl shrink-0 mx-auto mb-3 md:mb-4">3</div>
-                <h3 className="font-bold text-jee-brown text-base md:text-lg leading-tight">Lock Score</h3>
-                <p className="text-xs md:text-sm text-jee-brown/60 mt-2">Instant analytics and detailed LaTeX solutions.</p>
-              </div>
-              <ArrowRight className="text-jee-gold hidden md:block self-center shrink-0" size={32} />
-
-              {/* Step 4 */}
-              <div className="flex-1 bg-[#3A0B12] text-white p-4 md:p-6 rounded-2xl shadow-xl text-center relative w-full flex flex-col items-center">
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-jee-gold text-[#3A0B12] rounded-full flex items-center justify-center font-bold text-lg md:text-xl shrink-0 mx-auto mb-3 md:mb-4">4</div>
-                <h3 className="font-bold text-jee-gold text-base md:text-lg leading-tight">10 PM Drop</h3>
-                <p className="text-xs md:text-sm text-white/70 mt-2">Leaderboard unlocks. Claim your bragging rights.</p>
+              <div className="flex-1 bg-[#3A0B12] text-white p-6 rounded-2xl shadow-xl text-center relative flex flex-col items-center">
+                <div className="w-12 h-12 bg-jee-gold text-[#3A0B12] rounded-full flex items-center justify-center font-bold text-xl mx-auto mb-4">3</div>
+                <h3 className="font-bold text-jee-gold text-lg">Instant Analytics</h3>
+                <p className="text-sm text-white/70 mt-2">with your performance data.</p>
               </div>
             </div>
-
           </div>
         </div>
       )}
@@ -466,7 +383,6 @@ export default function App() {
               </div>
               <div>
                 <label className="block text-sm font-bold text-jee-brown mb-3">Select Avatar</label>
-                
                 <div className="flex gap-4 overflow-x-auto pb-4 pt-2 px-2 snap-x custom-scrollbar">
                   {AVATARS.map((avatar, idx) => (
                     <button

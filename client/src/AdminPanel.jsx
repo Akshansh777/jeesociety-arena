@@ -1,18 +1,28 @@
-import React, { useState } from 'react';
-import { Save, Plus, Lock, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Save, Plus, Lock, ArrowRight, Trash2 } from 'lucide-react';
 
 export default function AdminPanel() {
-  // --- SECURITY STATE ---
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // --- DASHBOARD STATE ---
   const [questions, setQuestions] = useState([]);
-  const [status, setStatus] = useState('Saving config will wipe current leaderboard.');
+  const [status, setStatus] = useState('Fetch successful. Ready to edit.');
 
-  // The secret passcode (Change this!)
   const ADMIN_SECRET = 'JEE2026';
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      setStatus('Loading current arena config...');
+      fetch(import.meta.env.VITE_API_URL + '/api/config')
+        .then(res => res.json())
+        .then(data => {
+          if (data.questions) setQuestions(data.questions);
+          setStatus('Arena data synced. Ready to edit.');
+        })
+        .catch(err => setStatus('⚠️ Failed to connect to server.'));
+    }
+  }, [isAuthenticated]);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -36,25 +46,28 @@ export default function AdminPanel() {
     }]);
   };
 
+  const removeQuestion = (indexToRemove) => {
+    setQuestions(questions.filter((_, idx) => idx !== indexToRemove));
+  };
+
   const handleSave = async () => {
-    setStatus('Saving...');
+    setStatus('Deploying to servers...');
     try {
       await fetch(import.meta.env.VITE_API_URL + '/api/admin/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           questions: questions,
-          liveStatus: true,
-          newDropTime: new Date().setHours(22, 0, 0, 0) 
+          // If questions exist, set live to true automatically
+          liveStatus: questions.length > 0 
         })
       });
-      setStatus('✅ Success! Arena is live with new questions.');
+      setStatus('✅ Success! Arena is live with updated questions.');
     } catch (err) {
       setStatus('❌ Failed to connect to server.');
     }
   };
 
-  // --- VIEW 1: THE LOCK SCREEN ---
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-jee-bg flex items-center justify-center p-4">
@@ -86,24 +99,31 @@ export default function AdminPanel() {
     );
   }
 
-  // --- VIEW 2: THE DASHBOARD (Only visible if authenticated) ---
   return (
     <div className="min-h-screen bg-[#3A0B12] text-white p-8 font-sans">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-black text-jee-gold mb-8">HQ: Arena Control</h1>
-        
-        <div className="mb-8">
-          <button onClick={addQuestion} className="bg-jee-maroon px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-jee-maroon/80 transition font-bold">
-            <Plus size={20} /> Add Question
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-black text-jee-gold">HQ: Arena Control</h1>
+          <button onClick={addQuestion} className="bg-jee-green px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-jee-green/80 transition font-bold text-white shadow-lg">
+            <Plus size={20} /> Add New Question
           </button>
         </div>
 
         <div className="space-y-6">
           {questions.map((q, qIndex) => (
-            <div key={q.id} className="bg-white/10 p-6 rounded-xl border border-white/20 shadow-xl">
-              <div className="grid grid-cols-2 gap-4 mb-4">
+            <div key={q.id || qIndex} className="bg-white/10 p-6 rounded-xl border border-white/20 shadow-xl relative">
+              <button 
+                onClick={() => removeQuestion(qIndex)}
+                className="absolute top-4 right-4 text-white/40 hover:text-red-400 transition"
+                title="Delete Question"
+              >
+                <Trash2 size={20} />
+              </button>
+
+              <div className="grid grid-cols-2 gap-4 mb-4 pr-8">
                 <input 
                   type="text" placeholder="Subject (e.g. Physics)" 
+                  value={q.subject || ''}
                   className="bg-black/30 p-3 rounded text-white focus:outline-none focus:ring-1 focus:ring-jee-gold"
                   onChange={(e) => {
                     const updated = [...questions];
@@ -112,6 +132,7 @@ export default function AdminPanel() {
                   }}
                 />
                 <select 
+                  value={q.type || 'pyq'}
                   className="bg-black/30 p-3 rounded text-white focus:outline-none"
                   onChange={(e) => {
                     const updated = [...questions];
@@ -125,7 +146,8 @@ export default function AdminPanel() {
               </div>
               
               <textarea 
-                placeholder="Question Text..."
+                placeholder="Question Text (You can use $LaTeX$ here)"
+                value={q.text || ''}
                 className="w-full bg-black/30 p-3 rounded text-white mb-4 h-24 focus:outline-none focus:ring-1 focus:ring-jee-gold"
                 onChange={(e) => {
                   const updated = [...questions];
@@ -139,7 +161,8 @@ export default function AdminPanel() {
                   <div key={oIndex} className="flex items-center gap-3 bg-black/20 p-2 rounded-lg border border-white/5">
                     <input 
                       type="radio" 
-                      name={`correct-${q.id}`}
+                      name={`correct-${q.id || qIndex}`}
+                      checked={q.correctOption === oIndex}
                       className="w-4 h-4 cursor-pointer accent-jee-gold"
                       onChange={() => {
                         const updated = [...questions];
@@ -149,6 +172,7 @@ export default function AdminPanel() {
                     />
                     <input 
                       type="text" placeholder={`Option ${oIndex + 1}`}
+                      value={opt || ''}
                       className="w-full bg-transparent p-1 text-white focus:outline-none"
                       onChange={(e) => {
                         const updated = [...questions];
@@ -161,16 +185,22 @@ export default function AdminPanel() {
               </div>
             </div>
           ))}
+          {questions.length === 0 && (
+            <div className="text-center text-white/50 py-10 border-2 border-dashed border-white/20 rounded-xl">
+              No questions found. Click "Add New Question" to start building the arena.
+            </div>
+          )}
         </div>
 
-        {questions.length > 0 && (
-          <div className="mt-8 p-6 bg-black/30 rounded-xl border border-jee-gold/30">
-            <p className="text-sm text-jee-gold mb-4 font-bold">{status}</p>
-            <button onClick={handleSave} className="bg-jee-green text-white px-8 py-3 rounded-lg font-bold flex items-center gap-2 hover:scale-105 transition">
-              <Save size={20} /> Deploy to JEEsociety
-            </button>
-          </div>
-        )}
+        <div className="mt-8 p-6 bg-black/30 rounded-xl border border-jee-gold/30 flex items-center justify-between">
+          <p className="text-sm text-jee-gold font-bold">{status}</p>
+          <button 
+            onClick={handleSave} 
+            className="bg-jee-maroon text-white px-8 py-3 rounded-lg font-bold flex items-center gap-2 hover:scale-105 transition"
+          >
+            <Save size={20} /> {questions.length === 0 ? 'Clear Arena Data' : 'Deploy to JEEsociety'}
+          </button>
+        </div>
       </div>
     </div>
   );
