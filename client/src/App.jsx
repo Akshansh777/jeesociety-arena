@@ -59,7 +59,7 @@ export default function App() {
     const parts = text.split('$');
     return parts.map((part, index) => {
       if (index % 2 === 1 && part.trim() !== '') return <InlineMath key={index} math={part} />;
-      return <span key={index}>{part}</span>;
+      return <span key={index} className="whitespace-normal break-words">{part}</span>;
     });
   };
 
@@ -126,22 +126,22 @@ export default function App() {
                       {!isPoll && (isCorrect ? <CheckCircle className="text-jee-green shrink-0" size={24} /> : <XCircle className="text-red-500 shrink-0" size={24} />)}
                     </div>
                     
-                    <div className="space-y-2 text-sm mt-4">
+                    <div className="space-y-3 text-sm mt-4">
                       {isPoll ? (
-                        <div className="flex items-center gap-2 text-jee-brown">
-                          <span className="font-bold text-gray-500">Your Vote:</span>
-                          <span>{userChoiceIdx !== undefined && q.options[userChoiceIdx] ? renderMath(q.options[userChoiceIdx]) : 'Skipped'}</span>
+                        <div className="flex items-start gap-2 text-jee-brown">
+                          <span className="font-bold text-gray-500 shrink-0">Your Vote:</span>
+                          <span className="whitespace-normal break-words flex-1">{userChoiceIdx !== undefined && q.options[userChoiceIdx] ? renderMath(q.options[userChoiceIdx]) : 'Skipped'}</span>
                         </div>
                       ) : (
                         <>
-                          <div className={`flex items-center gap-2 ${isCorrect ? 'text-jee-green font-bold' : 'text-red-600 font-bold'}`}>
-                            <span>Your Answer:</span>
-                            <span>{userChoiceIdx !== undefined && q.options[userChoiceIdx] ? <InlineMath math={q.options[userChoiceIdx]} /> : 'Skipped'}</span>
+                          <div className={`flex items-start gap-2 ${isCorrect ? 'text-jee-green font-bold' : 'text-red-600 font-bold'}`}>
+                            <span className="shrink-0 pt-0.5">Your Answer:</span>
+                            <span className="whitespace-normal break-words flex-1">{userChoiceIdx !== undefined && q.options[userChoiceIdx] ? renderMath(q.options[userChoiceIdx]) : 'Skipped'}</span>
                           </div>
                           {!isCorrect && (
-                            <div className="flex items-center gap-2 text-jee-green font-bold bg-white p-2 rounded-lg border border-jee-green/20 mt-2">
-                              <span>Correct Answer:</span>
-                              <span>{q.options[q.correctOption] ? <InlineMath math={q.options[q.correctOption]} /> : 'N/A'}</span>
+                            <div className="flex items-start gap-2 text-jee-green font-bold bg-white p-3 rounded-lg border border-jee-green/20 mt-2 shadow-sm">
+                              <span className="shrink-0 pt-0.5">Correct Answer:</span>
+                              <span className="whitespace-normal break-words flex-1">{q.options[q.correctOption] ? renderMath(q.options[q.correctOption]) : 'N/A'}</span>
                             </div>
                           )}
                         </>
